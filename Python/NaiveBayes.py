@@ -15,7 +15,7 @@ class GaussNaiveBayes:
         for i in range(X_test.shape[0]):
             probabilities = []
             for j in range(self.classes.shape[0]):
-                prob = np.log(self.y_probs[j+1])
+                prob = np.log(self.y_probs[j])
                 for ii in range(X_test.shape[1]):
                     if self.σ[j][ii] == 0:
                         continue
@@ -56,7 +56,7 @@ class MultNaiveBayes:
         for i in range(X_test.shape[0]):
             probabilities = []
             for j in range(self.classes.shape[0]):
-                prob = np.log(self.phi_y[j+1])
+                prob = np.log(self.phi_y[j])
                 for ii in range(X_test.shape[1]):
                     prob += np.log(self.params[j][X_test[i][ii]][ii])
                 probabilities.append(prob)
