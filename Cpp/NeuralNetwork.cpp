@@ -13,11 +13,12 @@ public:
 	}
 
 	double derivative(double x) {
-		return x * (1.0 - x);
+		double val = 1.0 / (1.0 + exp(-x));
+		return val * (1.0 - val);
 	}
 };
 
-template<typename Activation_Func, unsigned dim = FEATURE_NR>
+template<typename Activation_Func>
 class NeuralNetwork {
 	struct node {
 		double* weights;
@@ -41,7 +42,7 @@ class NeuralNetwork {
 		std::vector<node> layer;
 		layer.reserve(out_size);
 		for (unsigned i = 0; i < out_size; i++) {
-			double* weights = new double[dim];
+			double* weights = new double[in_size];
 			std::uniform_real_distribution<double> dist(0.0, 1.0);
 			for (unsigned j = 0; j < in_size; j++)
 				weights[j] = dist(gen);
@@ -65,8 +66,8 @@ class NeuralNetwork {
 	}
 
 	void backward_pass(double y_hot[]) {
-		for (unsigned j = 0; j < network.front().size(); j++) {
-			node& node = network.front()[j];
+		for (unsigned j = 0; j < network.back().size(); j++) {
+			node& node = network.back()[j];
 			node.delta = (node.output - y_hot[j]) * func.derivative(node.output);
 		}
 		for (int i = static_cast<int>(network.size()) - 2; i >= 0; i--) {
@@ -81,7 +82,7 @@ class NeuralNetwork {
 
 	void update_weights(double* x, double eta) {
 		for (node& n : network[0])
-			for (unsigned j = 0; j < dim; j++)
+			for (unsigned j = 0; j < network[0].size(); j++)
 				n.weights[j] -= eta * n.delta * x[j];
 		for (unsigned i = 1; i < network.size(); i++) {
 			for (node& n : network[i]) {
@@ -92,14 +93,14 @@ class NeuralNetwork {
 	}
 
 public:
-	NeuralNetwork(double** x, unsigned* y, const unsigned size, std::vector<unsigned>& layers_sizes) : 
+	NeuralNetwork(double** x, unsigned* y, const unsigned size, unsigned dim, std::vector<unsigned>& layers_sizes) : 
 		train_x(x), train_y(y), input_size(size) {
 		std::random_device rd;
 		std::mt19937_64 gen(rd());
 		network.push_back(create_layer(dim, layers_sizes[0], gen));
 		for (unsigned i = 1; i < layers_sizes.size(); i++)
-			network.push_back(create_layer(network.front().size(), layers_sizes[i], gen));
-		network.push_back(create_layer(network.front().size(), CLASS_NR, gen));
+			network.push_back(create_layer(layers_sizes[i - 1], layers_sizes[i], gen));
+		network.push_back(create_layer(layers_sizes.back(), CLASS_NR, gen));
 	}
 
 	~NeuralNetwork() {
@@ -143,7 +144,7 @@ int main() {
 	set_holder data = prepare_data();
 	data.standardize();
 	std::vector<unsigned> layers{ 5 };
-	NeuralNetwork<sigmoid> nn(data.train_x, data.train_y, TRAIN_SIZE, layers);
+	NeuralNetwork<sigmoid> nn(data.train_x, data.train_y, TRAIN_SIZE, FEATURE_NR, layers);
 	nn.fit(0.1, 50);
 	std::cout << "Fitting done" << std::endl;
 	std::cout << "Accuracy: " << nn.check(data.val_x, data.val_y) << std::endl;
