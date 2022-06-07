@@ -61,7 +61,6 @@ class SetHolder:
         if dim is None:
             sorted_values = eig_values[idx]
             prefix = np.cumsum(sorted_values) / np.sum(sorted_values)
-            print(prefix)
             for index, val in enumerate(prefix):
                 if val >= threshold:
                     dim = index + 1
