@@ -56,7 +56,7 @@ class SetHolder:
         x = x - np.mean(x, axis=0)
         cov = np.cov(x, rowvar=False)
         eig_values, eig_vectors = np.linalg.eigh(cov)
-        idx = np.argsort(eig_values)
+        idx = np.argsort(-eig_values)
         sorted_vectors = eig_vectors[:, idx]
         if dim is None:
             sorted_values = eig_values[idx]
