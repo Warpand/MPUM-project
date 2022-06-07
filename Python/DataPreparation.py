@@ -53,8 +53,8 @@ class SetHolder:
 
     @staticmethod
     def _pca(x, dim, threshold):
-        x = x - np.mean(x, axis=0)
-        cov = np.cov(x, rowvar=False)
+        x_mean = x - np.mean(x, axis=0)
+        cov = np.cov(x_mean, rowvar=False)
         eig_values, eig_vectors = np.linalg.eigh(cov)
         idx = np.argsort(-eig_values)
         sorted_vectors = eig_vectors[:, idx]
@@ -65,16 +65,16 @@ class SetHolder:
                 if val >= threshold:
                     dim = index + 1
                     break
-        return (sorted_vectors[:, :dim].transpose() @ x.transpose()).transpose()
+        return sorted_vectors[:, :dim].transpose()
 
     def pca(self, dim=None, threshold: float = 0.95):
         """ Performs principal component analysis to lower the dimension
             of data to the one given in parameter dim. When dim is None
-            it's calculated based on threshold parameter (iif dim is not None
-            threshold is ignored) Threshold should be between 0.0 and 100.0.
-            This method should be called before calling normalize or standardize."""
-        stacked_data = np.vstack([self.train_x, self.val_x, self.test_x])
-        new_data = SetHolder._pca(stacked_data, dim, threshold)
-        self.train_x = new_data[:TRAIN_SIZE]
-        self.val_x = new_data[TRAIN_SIZE:TRAIN_SIZE + VAL_SIZE]
-        self.test_x = new_data[TRAIN_SIZE + VAL_SIZE:]
+            it's calculated based on threshold parameter (if dim is not None
+            threshold is ignored) Threshold should be between 0.0 and 100.0. """
+        v = SetHolder._pca(self.train_x, dim, threshold)
+        mean = np.mean(self.train_x, axis=0)
+        self.train_x = (v @ (self.train_x - mean).transpose()).transpose()
+        self.val_x = (v @ (self.val_x - mean).transpose()).transpose()
+        self.test_x = (v @ (self.test_x - mean).transpose()).transpose()
+
