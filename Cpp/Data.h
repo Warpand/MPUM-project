@@ -23,14 +23,14 @@ struct set_holder {
 		double* means = new double[FEATURE_NR], *stds = new double[FEATURE_NR];
 		for (unsigned i = 0; i < FEATURE_NR; i++)
 			means[i] = stds[i] = 0.0;
-		for (unsigned i = 0; i < TRAIN_SIZE; i++) {
-			for (unsigned j = 0; j < FEATURE_NR; j++) {
+		for (unsigned i = 0; i < TRAIN_SIZE; i++) 
+			for (unsigned j = 0; j < FEATURE_NR; j++) 
 				means[j] += train_x[i][j];
-				stds[j] += (train_x[i][j] * train_x[i][j]);
-			}
-		}
 		for (unsigned j = 0; j < FEATURE_NR; j++)
 			means[j] /= static_cast<double>(TRAIN_SIZE);
+		for (unsigned i = 0; i < TRAIN_SIZE; i++) 
+			for (unsigned j = 0; j < FEATURE_NR; j++)
+				stds[j] += (train_x[i][j] - means[j]) * (train_x[i][j] - means[j]);
 		for (unsigned j = 0; j < FEATURE_NR; j++)
 			stds[j] = sqrt(stds[j] / static_cast<double>(TRAIN_SIZE));
 		for (unsigned i = 0; i < TRAIN_SIZE; i++)
@@ -45,7 +45,6 @@ struct set_holder {
 		delete[]means;
 		delete[]stds;
 	}
-
 	void normalize() {
 		double* mins = new double[FEATURE_NR], * maxs = new double[FEATURE_NR];
 		for (unsigned i = 0; i < FEATURE_NR; i++)
@@ -70,6 +69,21 @@ struct set_holder {
 		delete[]mins;
 		delete[]maxs;
 	}
+
+	void clear() {
+		for (unsigned i = 0; i < TRAIN_SIZE; i++)
+			delete[]train_x[i];
+		for (unsigned i = 0; i < VAL_SIZE; i++)
+			delete[]val_x[i];
+		for (unsigned i = 0; i < TEST_SIZE; i++)
+			delete[]test_x[i];
+		delete[]train_x;
+		delete[]train_y;
+		delete[]val_x;
+		delete[]val_y;
+		delete[]test_x;
+		delete[]test_y;
+	}
 };
 
 static const char* TRAIN_FILE = "../train.data";
@@ -90,6 +104,7 @@ void fill_data(double** x, unsigned* y, unsigned size, const char* filename) {
 		for (unsigned j = 0; j < FEATURE_NR; j++)
 			input >> x[i][j];
 		input >> y[i];
+		y[i]--;
 	}
 	input.close();
 }
