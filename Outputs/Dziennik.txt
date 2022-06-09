@@ -1,0 +1,3 @@
+AdaBoost:
+	42.5% (100 iteracji)
+
