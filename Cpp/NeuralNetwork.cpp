@@ -2,7 +2,6 @@
 #include <cmath>
 #include <vector>
 #include <random>
-#include <iomanip>
 
 #include "Data.h"
 
@@ -82,7 +81,7 @@ class NeuralNetwork {
 
 	void update_weights(double* x, double eta) {
 		for (node& n : network[0])
-			for (unsigned j = 0; j < network[0].size(); j++)
+			for (unsigned j = 0; j < n.size; j++)
 				n.weights[j] -= eta * n.delta * x[j];
 		for (unsigned i = 1; i < network.size(); i++) {
 			for (node& n : network[i]) {
@@ -131,9 +130,6 @@ public:
 				arg_max = (probs[j] > probs[arg_max]) ? j : arg_max;
 			if (arg_max == test_y[i])
 				guessed += 1;
-			/*for (unsigned k = 0; k < CLASS_NR; k++)
-				std::cout << probs[k] << ' ';
-			std::cout << '\n';*/
 			delete[]probs;
 		}
 		return static_cast<double>(guessed) * 100.0 / static_cast<double>(size);
@@ -141,7 +137,14 @@ public:
 };
 
 int main() {
-	set_holder data = prepare_data();
+	set_holder data;
+	try {
+		data = prepare_data();
+	}
+	catch(std::ios_base::failure& er) {
+		std::cout << er.what() << std::endl;
+		return -1;
+	}
 	data.standardize();
 	std::vector<unsigned> layers{ 5 };
 	NeuralNetwork<sigmoid> nn(data.train_x, data.train_y, TRAIN_SIZE, FEATURE_NR, layers);
