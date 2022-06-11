@@ -43,7 +43,7 @@ class MultiClassSvm:
             self.svm_list.append(AbstractSvm(y, i))
         kernel = AbstractSvm.calc_kernel_matrix(x, x, sigma)
         for svm in self.svm_list:
-            svm.kernel_matrix = kernel
+            svm.kernel_matrix = kernel.view()
         self.sigma = sigma
         self.c = c
 
@@ -55,7 +55,7 @@ class MultiClassSvm:
         obs_kernel = AbstractSvm.calc_kernel_matrix(self.x, x, self.sigma)
         predictions = np.ndarray(shape=(len(self.svm_list), len(x)))
         for index, svm in enumerate(self.svm_list):
-            svm.obs_kernel = obs_kernel
+            svm.obs_kernel = obs_kernel.view()
             predictions[index] = svm.predict()
         return np.argmax(predictions, axis=0)
 
