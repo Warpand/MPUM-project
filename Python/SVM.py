@@ -28,22 +28,39 @@ class AbstractSvm:
             self.alpha[self.alpha < 0.0] = 0.0
         self.b = np.mean(self.y - np.dot(self.alpha * self.y, self.kernel_matrix))
 
-    def predict(self):
-        idx = np.argwhere(self.y == 1).flatten()
-        predictions = self.alpha[idx] @ self.obs_kernel[idx] + self.b
-        return predictions
+    def predict(self, full=False):
+        if not full:
+            idx = np.argwhere(self.y == 1).flatten()
+            res = (self.alpha[idx] @ self.obs_kernel[idx] + self.b) / (self.alpha @ self.obs_kernel)
+            # print(res)
+            return res
+        else:
+            return np.sign((self.alpha * self.y) @ self.obs_kernel + self.b)
 
 
+# noinspection PyUnresolvedReferences
 class MultiClassSvm:
-    def __init__(self, x, y, sigma=1.0, c=1.0):
+    def __init__(self, x, y, strategy, sigma=1.0, c=1.0):
+        if strategy not in ['ovo', 'ova']:
+            raise Exception
+        self.strategy = strategy
         self.x = x
         class_nr = len(np.unique(y))
+        if strategy == 'ovo':
+            self.y = y
+            self.class_nr = class_nr
         self.svm_list = []
-        for i in range(class_nr):
-            self.svm_list.append(AbstractSvm(y, i))
         kernel = AbstractSvm.calc_kernel_matrix(x, x, sigma)
-        for svm in self.svm_list:
-            svm.kernel_matrix = kernel
+        if strategy == 'ova':
+            for i in range(class_nr):
+                self.svm_list.append(AbstractSvm(y, i))
+                self.svm_list[-1].kernel_matrix = kernel.view()
+        else:
+            for i in range(class_nr):
+                for j in range(i):
+                    idx = np.hstack([np.argwhere(y == i).flatten(), np.argwhere(y == j).flatten()])
+                    self.svm_list.append(AbstractSvm(y[idx], j))
+                    self.svm_list[-1].kernel_matrix = kernel[np.ix_(idx, idx)]
         self.sigma = sigma
         self.c = c
 
@@ -53,11 +70,28 @@ class MultiClassSvm:
 
     def predict(self, x):
         obs_kernel = AbstractSvm.calc_kernel_matrix(self.x, x, self.sigma)
-        predictions = np.ndarray(shape=(len(self.svm_list), len(x)))
-        for index, svm in enumerate(self.svm_list):
-            svm.obs_kernel = obs_kernel
-            predictions[index] = svm.predict()
-        return np.argmax(predictions, axis=0)
+        if self.strategy == 'ova':
+            predictions = np.ndarray(shape=(len(self.svm_list), len(x)))
+            for index, svm in enumerate(self.svm_list):
+                svm.obs_kernel = obs_kernel.view()
+                predictions[index] = svm.predict()
+            return np.argmax(predictions, axis=0)
+        else:
+            counters = np.zeros(shape=(len(x), self.class_nr), dtype=int)
+            index = 0
+            for i in range(self.class_nr):
+                for j in range(i):
+                    self.svm_list[index].obs_kernel = obs_kernel[np.hstack([np.argwhere(self.y == i).flatten(),
+                                                                            np.argwhere(self.y == j).flatten()])]
+                    predictions = self.svm_list[index].predict(full=True)
+                    for k, p in enumerate(predictions):
+                        if p == 1:
+                            counters[k][j] += 1
+                        else:
+                            counters[k][i] += 1
+                    index += 1
+            # print(counters)
+            return np.argmax(counters, axis=1)
 
     def check(self, x, y):
         return np.sum((self.predict(x) == y).astype(int)) * 100 / len(y)
@@ -66,7 +100,6 @@ class MultiClassSvm:
 if __name__ == '__main__':
     data = SetHolder()
     data.normalize()
-    svm = MultiClassSvm(data.train_x, data.train_y)
+    svm = MultiClassSvm(data.train_x, data.train_y, 'ovo')
     svm.fit()
     print(svm.check(data.test_x, data.test_y))
-    
