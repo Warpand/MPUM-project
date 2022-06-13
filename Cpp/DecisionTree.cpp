@@ -3,7 +3,11 @@
 #include <iostream>
 #include <future>
 #include <algorithm>
+#include <random>
+#include <mutex>
 using namespace std;
+
+constexpr unsigned SQRT_FEATURE = 25;
 
 class Node
 {
@@ -36,45 +40,50 @@ class Node
 
 class DecisionTree
 {
-    Node* root;
+    Node* root=nullptr;
     int max_depth;
     int features;
     string impurity;
+    bool random = false;
+    friend class RandomForests;
     //epsilon, minsamples split
 
     void del(Node* cur_node)
     {
-        if(cur_node->left!=nullptr)
-        {
-            del(cur_node->left);
-        }
-        if(cur_node->right!=nullptr)
-        {
-            del(cur_node->right);
-        }
+        if(cur_node==nullptr)
+            return;
+        del(cur_node->left);
+        del(cur_node->right);
         delete cur_node;
     }
 
     Node* build_tree(int depth, double** cur_x, unsigned* cur_y, int cur_size)
     {
-        cout<<"Depth "<<depth<<endl;
-        if(depth>=max_depth)
+        //cout<<"Depth "<<depth<<endl;
+        int tab[FEATURE_NR];
+        for(int i=0;i<FEATURE_NR;i++)
         {
-            int classes[8]={0};
-            for(int i=0;i<cur_size;i++)
+            tab[i]=i;
+        }
+
+        int classes[8]={0};
+        for(int i=0;i<cur_size;i++)
+        {
+            classes[cur_y[i]]++;
+        }
+        unsigned index=0;
+        int max_val=classes[0];
+        for(int i=1;i<8;i++)
+        {
+            if(max_val<classes[i])
             {
-                classes[cur_y[i]]++;
+                max_val = classes[i];
+                index = i;
             }
-            unsigned index=0;
-            int max_val=classes[0];
-            for(int i=1;i<8;i++)
-            {
-                if(max_val<classes[i])
-                {
-                    max_val = classes[i];
-                    index = i;
-                }
-            }
+        }
+        if(depth>=max_depth || max_val==cur_size)
+        {
+            
             Node* new_node = new Node(index);
             return new_node;
         }
@@ -82,19 +91,24 @@ class DecisionTree
         double best_score=-1;
         int best_feature;
         double best_val;
-        pair<double, unsigned>* buf = new pair<double, unsigned>[cur_size];
+
+        if(random)
+        {
+            random_shuffle(tab, tab+FEATURE_NR);
+        }
+
         for(int i=0;i<features;i++)
         {
             for(int j=0;j<cur_size-1;j++)
             {
-                double val = (cur_x[j][i] + cur_x[j+1][i])/2;
+                double val = (cur_x[j][tab[i]] + cur_x[j+1][tab[i]])/2;
                 int classes_below[8]={0};
                 int classes_above[8]={0};
                 int size_above=0;
                 int size_below=0;
                 for(int ii=0;ii<cur_size;ii++)
                 {
-                    if(cur_x[ii][i]>val)
+                    if(cur_x[ii][tab[i]]>val)
                     {
                         classes_above[cur_y[ii]]++;
                         size_above++;
@@ -132,7 +146,7 @@ class DecisionTree
                     if(best_score==-1 || entropy>best_score)
                     {
                         best_score = entropy;
-                        best_feature = i;
+                        best_feature = tab[i];
                         best_val = val;
                     }
                 }
@@ -155,20 +169,17 @@ class DecisionTree
                     if (best_score==-1 || gini < best_score)
                     {
                         best_score = gini;
-                        best_feature = i;
+                        best_feature = tab[i];
                         best_val = val;
                     }
                     
                 }
             }
         }
-
-        delete [] buf;
-
-        double* x_below[cur_size];
-        unsigned y_below[cur_size];
-        double* x_above[cur_size];
-        unsigned y_above[cur_size];
+        double** x_below = new double*[cur_size];
+        unsigned* y_below = new unsigned[cur_size];
+        double** x_above = new double*[cur_size];
+        unsigned* y_above = new unsigned[cur_size];
         int size_above=0;
         int size_below=0;
         for(;size_above+size_below<cur_size;)
@@ -188,11 +199,26 @@ class DecisionTree
             }
         }
 
-        auto a1 = async(launch::async, [this, depth, &x_below, &y_below, size_below](){return build_tree(depth+1, x_below, y_below, size_below);});
-        auto a2 = async(launch::async, [this, depth, &x_above, &y_above, size_above](){return build_tree(depth+1, x_above, y_above, size_above);});
-        Node* left = a1.get();
-        Node* right = a2.get();
+        Node* left;
+        Node* right;
+        if(depth<10)
+        {
+            auto a1 = async(launch::async, [this, depth, x_below, y_below, size_below](){return build_tree(depth+1, x_below, y_below, size_below);});
+            auto a2 = async(launch::async, [this, depth, x_above, y_above, size_above](){return build_tree(depth+1, x_above, y_above, size_above);});
+            left = a1.get();
+            right = a2.get();
+        }
+        else
+        {
+            left = build_tree(depth+1, x_below, y_below, size_below);
+            right = build_tree(depth+1, x_above, y_above, size_above);
 
+        }
+
+        delete [] x_below;
+        delete [] y_below;
+        delete [] x_above;
+        delete [] y_above;
         //thread a1([left, this, depth, &x_below, &y_below, size_below](){left = build_tree(depth+1, x_below, y_below, size_below)});
         //thread a2([right, this, depth, &x_above, &y_above, size_above](){ right = build_tree(depth+1, x_above, y_above, size_above)});
 
@@ -215,12 +241,22 @@ class DecisionTree
         return traverse_tree(x, cur_node->right);
     }
 
+    DecisionTree()
+    {
+        root = nullptr;
+    }
+
     public:
-    DecisionTree(int max_depth, int features, string impurity="entropy")
+    DecisionTree(int max_depth, int features, string impurity="entropy", bool random=false)
     {
         this->max_depth=max_depth;
         this->features=features;
         this->impurity = impurity;
+        this->random = random;
+        if(random)
+        {
+            this->features = SQRT_FEATURE;
+        }
     }
 
     void fit(double** train_x, unsigned* train_y, int size=TRAIN_SIZE)
@@ -251,11 +287,12 @@ class DecisionTree
 
 };
 
-int main()
+/*int main()
 {
     set_holder data = prepare_data();
 	data.standardize();
-    DecisionTree dt = DecisionTree(10, FEATURE_NR, "entropy");
+    DecisionTree dt = DecisionTree(8, FEATURE_NR, "entropy");
     dt.fit(data.train_x, data.train_y);
-    cout<<"Accuracy "<<dt.check(data.val_x, data.val_y)<<endl;
-}
+    cout<<"Accuracy "<<dt.check(data.test_x, data.test_y)<<endl;
+    data.clear();
+}*/
