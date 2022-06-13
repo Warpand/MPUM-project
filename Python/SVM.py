@@ -51,7 +51,6 @@ class MultiClassSvm:
             self.class_nr = class_nr
         self.svm_list = []
         kernel = AbstractSvm.calc_kernel_matrix(x, x, sigma)
-<<<<<<< HEAD
         if strategy == 'ova':
             for i in range(class_nr):
                 self.svm_list.append(AbstractSvm(y, i))
@@ -62,10 +61,6 @@ class MultiClassSvm:
                     idx = np.hstack([np.argwhere(y == i).flatten(), np.argwhere(y == j).flatten()])
                     self.svm_list.append(AbstractSvm(y[idx], j))
                     self.svm_list[-1].kernel_matrix = kernel[np.ix_(idx, idx)]
-=======
-        for svm in self.svm_list:
-            svm.kernel_matrix = kernel.view()
->>>>>>> 1da9fd8f5636994a8b71f1a06c0276a9b4750ec7
         self.sigma = sigma
         self.c = c
 
@@ -75,7 +70,6 @@ class MultiClassSvm:
 
     def predict(self, x):
         obs_kernel = AbstractSvm.calc_kernel_matrix(self.x, x, self.sigma)
-<<<<<<< HEAD
         if self.strategy == 'ova':
             predictions = np.ndarray(shape=(len(self.svm_list), len(x)))
             for index, svm in enumerate(self.svm_list):
@@ -98,13 +92,6 @@ class MultiClassSvm:
                     index += 1
             # print(counters)
             return np.argmax(counters, axis=1)
-=======
-        predictions = np.ndarray(shape=(len(self.svm_list), len(x)))
-        for index, svm in enumerate(self.svm_list):
-            svm.obs_kernel = obs_kernel.view()
-            predictions[index] = svm.predict()
-        return np.argmax(predictions, axis=0)
->>>>>>> 1da9fd8f5636994a8b71f1a06c0276a9b4750ec7
 
     def check(self, x, y):
         return np.sum((self.predict(x) == y).astype(int)) * 100 / len(y)
@@ -116,7 +103,3 @@ if __name__ == '__main__':
     svm = MultiClassSvm(data.train_x, data.train_y, 'ovo')
     svm.fit()
     print(svm.check(data.test_x, data.test_y))
-<<<<<<< HEAD
-=======
-    
->>>>>>> 1da9fd8f5636994a8b71f1a06c0276a9b4750ec7
