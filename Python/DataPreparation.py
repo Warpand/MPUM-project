@@ -34,8 +34,9 @@ class SetHolder:
     def standardize(self):
         stds = np.std(self.train_x, axis=0)
         means = np.mean(self.train_x, axis=0)
-        self.train_x -= means
-        self.train_x /= stds
+        for i in range(len(self.train_x)):
+            self.train_x[i] -= means
+            self.train_x[i] /= stds
         self.val_x -= means
         self.val_x /= stds
         self.test_x -= means
@@ -71,10 +72,10 @@ class SetHolder:
         """ Performs principal component analysis to lower the dimension
             of data to the one given in parameter dim. When dim is None
             it's calculated based on threshold parameter (if dim is not None
-            threshold is ignored) Threshold should be between 0.0 and 100.0. """
+            threshold is ignored) Threshold should be between 0.0 and 1.0. 
+            Calling standardize or normalize before calling this method is recommended """
         v = SetHolder._pca(self.train_x, dim, threshold)
         mean = np.mean(self.train_x, axis=0)
         self.train_x = (v @ (self.train_x - mean).transpose()).transpose()
         self.val_x = (v @ (self.val_x - mean).transpose()).transpose()
         self.test_x = (v @ (self.test_x - mean).transpose()).transpose()
-
