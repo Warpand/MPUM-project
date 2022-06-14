@@ -12,13 +12,11 @@ class SoftmaxRegression:
     @staticmethod
     def softmax(z):
         exp = np.exp(z-np.max(z))
-
-        for i in range(z.shape[0]):
-            exp[i] /= np.sum(exp[i])
-
+        sums = np.sum(exp, axis=1)
+        exp /= sums[:,None]
         return exp
 
-    def fit(self, X_train, y_train, eta, classes, iterations):
+    def fit(self, X_train, y_train, eta, classes, iterations, tolerance=0.0001):
         m, n = X_train.shape
 
         self.theta = np.random.random((n, classes))
@@ -39,10 +37,12 @@ class SoftmaxRegression:
             self.theta = self.theta - eta * grad_theta
             self.b = self.b - eta * grad_b
 
-            log_loss = -np.mean(np.log(y_pred[np.arange(y_train.shape[0]), y_train]))
-            log_losses.append(log_loss)
 
             if iter % 1000 == 0:
+                log_loss = -np.mean(np.log(y_pred[np.arange(y_train.shape[0]), y_train]))
+                if log_loss < tolerance:
+                    break
+                log_losses.append(log_loss)
                 print(f'Iter {iter}==> Loss = {log_loss}')
 
     def predict(self, X_test):
