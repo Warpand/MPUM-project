@@ -3,23 +3,21 @@ import numpy as np
 
 class GaussNaiveBayes:
 
-    def fit(self, X_train, y_train):
+    def fit(self, X_train, y_train, var_smoothing=1e-9):
         self.classes = np.unique(y_train)
         self.y_probs = (np.bincount(y_train)+1)/(y_train.shape[0]+8)
 
         self.μ = np.array([X_train[np.where(y_train == i)].mean(axis=0) for i in self.classes])
-        self.σ = np.array([X_train[np.where(y_train == i)].std(axis=0) for i in self.classes])
+        self.var = np.array([X_train[np.where(y_train == i)].var(axis=0) for i in self.classes])
+        self.var += var_smoothing*np.var(X_train, axis=0).max()
 
     def predict(self, X_test):
         result = []
         for i in range(X_test.shape[0]):
             probabilities = []
             for j in range(self.classes.shape[0]):
-                prob = np.log(self.y_probs[j])
-                for ii in range(X_test.shape[1]):
-                    if self.σ[j][ii] == 0:
-                        continue
-                    prob += np.log(1 / np.sqrt(2 * np.pi * self.σ[j][ii] ** 2)) - 0.5 * ((X_test[i][ii] - self.μ[j][ii]) / self.σ[j][ii]) ** 2
+                prob = np.log(self.y_probs[self.classes[j]])
+                prob += np.sum(-0.5*np.log(2 * np.pi * self.var[j,:])) - np.sum(0.5 * ((X_test[i,:] - self.μ[j,:])**2 / self.var[j,:]))
                 probabilities.append(prob)
             result.append(np.array(probabilities))
 
